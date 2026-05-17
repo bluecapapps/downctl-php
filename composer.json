@@ -1,0 +1,30 @@
+{
+    "name": "bluecapapps/downctl-php",
+    "description": "PHP SDK for the Downctl error and metrics reporting API.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "ext-curl": "*"
+    },
+    "require-dev": {
+        "pestphp/pest": "^3.0",
+        "phpstan/phpstan": "^1.12"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bluecapapps\\Downctl\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Bluecapapps\\Downctl\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable"
+}
