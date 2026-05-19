@@ -24,6 +24,10 @@ final class Config
         if ($this->apiKey === '') {
             throw new \InvalidArgumentException('Downctl API key must not be empty.');
         }
+
+        if (preg_match('/[\r\n]/', $this->apiKey) === 1) {
+            throw new \InvalidArgumentException('Downctl API key must not contain line breaks.');
+        }
     }
 
     public static function fromEnv(): self

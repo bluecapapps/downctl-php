@@ -59,6 +59,14 @@ final class CurlTransport implements TransportInterface
         $lines = [];
 
         foreach ($headers as $name => $value) {
+            if (! is_string($name) || preg_match("/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/", $name) !== 1) {
+                throw new TransportException('Invalid HTTP header name.');
+            }
+
+            if (! is_scalar($value) || preg_match('/[\r\n]/', (string) $value) === 1) {
+                throw new TransportException('Invalid HTTP header value.');
+            }
+
             $lines[] = "{$name}: {$value}";
         }
 

@@ -61,7 +61,7 @@ All SDK requests are sent to `https://downctl.com`.
 
 ### Capture an exception
 
-The most common use case. Extracts the message, stack trace, and current request URL automatically.
+The most common use case. Extracts the message, stack trace, and current request URL automatically. Query strings are stripped from captured URLs before sending, so request secrets such as tokens, codes, and signed URL parameters are not included in SDK payloads.
 
 ```php
 try {
@@ -99,6 +99,8 @@ $client->report(
     context: ['query_time_ms' => 4200],
 );
 ```
+
+Manually provided URLs are also sent without their query string. Context values are sent as provided by the base PHP SDK; integrations such as `bluecapapps/downctl-laravel` may add framework-specific context redaction before calling this client.
 
 Valid levels: `error`, `warning`, `info`.
 

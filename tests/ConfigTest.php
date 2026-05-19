@@ -15,6 +15,10 @@ test('config rejects empty api key', function () {
     new Config(apiKey: '');
 })->throws(\InvalidArgumentException::class);
 
+test('config rejects api keys with line breaks', function () {
+    new Config(apiKey: "key-abc\r\nX-Injected: yes");
+})->throws(\InvalidArgumentException::class);
+
 test('fromEnv reads environment variables', function () {
     $_ENV['DOWNCTL_API_KEY'] = 'key-from-env';
 

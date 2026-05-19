@@ -4,18 +4,24 @@ declare(strict_types=1);
 
 namespace Bluecapapps\Downctl\Payload;
 
+use Bluecapapps\Downctl\Support\UrlSanitizer;
+
 final class ErrorPayload
 {
     private const VALID_LEVELS = ['error', 'warning', 'info'];
+
+    public readonly ?string $url;
 
     public function __construct(
         public readonly string $level,
         public readonly string $message,
         public readonly ?string $stackTrace = null,
-        public readonly ?string $url = null,
+        ?string $url = null,
         public readonly ?string $userAgent = null,
         public readonly ?array $context = null,
     ) {
+        $this->url = UrlSanitizer::stripQuery($url);
+
         if (! in_array($this->level, self::VALID_LEVELS, true)) {
             throw new \InvalidArgumentException(
                 sprintf('Level must be one of: %s.', implode(', ', self::VALID_LEVELS))

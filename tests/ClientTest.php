@@ -56,12 +56,12 @@ test('report includes optional fields when provided', function () {
     $transport = makeTransport();
     $client    = new Client(new Config(apiKey: 'key-abc'), $transport);
 
-    $client->report('Slow render', 'warning', null, 'https://app.test/page', ['user_id' => 99]);
+    $client->report('Slow render', 'warning', null, 'https://app.test/page?token=secret#section', ['user_id' => 99]);
 
     $body = $transport->postCalls[0]['body'];
 
     expect($body['level'])->toBe('warning')
-        ->and($body['url'])->toBe('https://app.test/page')
+        ->and($body['url'])->toBe('https://app.test/page#section')
         ->and($body['context'])->toBe(['user_id' => 99]);
 });
 
@@ -78,6 +78,23 @@ test('captureException extracts message and trace from throwable', function () {
 
     expect($body['message'])->toBe('Test exception')
         ->and($body['stack_trace'])->toContain('#0');
+});
+
+test('captureException strips request query strings from captured urls', function () {
+    $_SERVER['HTTPS']       = 'on';
+    $_SERVER['HTTP_HOST']   = 'app.test';
+    $_SERVER['REQUEST_URI'] = '/checkout?access_token=secret&order=123';
+
+    try {
+        $transport = makeTransport();
+        $client    = new Client(new Config(apiKey: 'key-abc'), $transport);
+
+        $client->captureException(new \RuntimeException('Payment failed'));
+
+        expect($transport->postCalls[0]['body']['url'])->toBe('https://app.test/checkout');
+    } finally {
+        unset($_SERVER['HTTPS'], $_SERVER['HTTP_HOST'], $_SERVER['REQUEST_URI']);
+    }
 });
 
 // ── silent mode ───────────────────────────────────────────────────────────────
