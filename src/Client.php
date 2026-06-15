@@ -52,6 +52,46 @@ class Client
         ));
     }
 
+    /**
+     * Send a simple heartbeat ping for the given cron monitor token.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public function pingCron(string $token, array $metadata = []): void
+    {
+        $this->sendCronPing($token, '', $metadata);
+    }
+
+    /**
+     * Notify Downctl that the monitored job has started.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public function pingCronStarted(string $token, array $metadata = []): void
+    {
+        $this->sendCronPing($token, '/started', $metadata);
+    }
+
+    /**
+     * Notify Downctl that the monitored job completed successfully.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public function pingCronFinished(string $token, array $metadata = []): void
+    {
+        $this->sendCronPing($token, '/finished', $metadata);
+    }
+
+    /**
+     * Notify Downctl that the monitored job failed.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public function pingCronFailed(string $token, array $metadata = []): void
+    {
+        $this->sendCronPing($token, '/failed', $metadata);
+    }
+
     public function reportMetrics(MetricsPayload $metrics): void
     {
         $this->send(function () use ($metrics): void {
@@ -98,6 +138,22 @@ class Client
 
             if ($status < 200 || $status >= 300) {
                 throw new TransportException("Errors endpoint returned HTTP {$status}.");
+            }
+        });
+    }
+
+    /** @param  array<string, mixed>  $metadata */
+    private function sendCronPing(string $token, string $suffix, array $metadata): void
+    {
+        $this->send(function () use ($token, $suffix, $metadata): void {
+            $url = rtrim($this->config->url, '/').'/ping/cron/'.$token.$suffix;
+
+            $status = $metadata !== []
+                ? $this->transport->post(url: $url, headers: [], body: $metadata)
+                : $this->transport->get(url: $url, headers: []);
+
+            if ($status < 200 || $status >= 300) {
+                throw new TransportException("Cron ping returned HTTP {$status}.");
             }
         });
     }

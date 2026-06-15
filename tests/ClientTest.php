@@ -140,6 +140,91 @@ test('ping returns false when health endpoint fails', function () {
     expect($client->ping())->toBeFalse();
 });
 
+// ── cron pings ───────────────────────────────────────────────────────────────
+
+test('pingCron sends a GET to the cron ping URL', function () {
+    $transport = makeTransport(getStatus: 200);
+    $client    = new Client(new Config(apiKey: 'key-abc'), $transport);
+
+    $client->pingCron('abc123');
+
+    expect($transport->getCalls)->toHaveCount(1)
+        ->and($transport->getCalls[0]['url'])->toBe('https://downctl.com/ping/cron/abc123');
+});
+
+test('pingCron with metadata sends a POST', function () {
+    $transport = makeTransport();
+    $client    = new Client(new Config(apiKey: 'key-abc'), $transport);
+
+    $client->pingCron('abc123', ['runtime' => 4.2]);
+
+    expect($transport->postCalls)->toHaveCount(1)
+        ->and($transport->postCalls[0]['url'])->toBe('https://downctl.com/ping/cron/abc123')
+        ->and($transport->postCalls[0]['body'])->toBe(['runtime' => 4.2]);
+});
+
+test('pingCronStarted sends to /started suffix', function () {
+    $transport = makeTransport(getStatus: 200);
+    $client    = new Client(new Config(apiKey: 'key-abc'), $transport);
+
+    $client->pingCronStarted('abc123');
+
+    expect($transport->getCalls[0]['url'])->toBe('https://downctl.com/ping/cron/abc123/started');
+});
+
+test('pingCronFinished sends to /finished suffix with metadata', function () {
+    $transport = makeTransport();
+    $client    = new Client(new Config(apiKey: 'key-abc'), $transport);
+
+    $client->pingCronFinished('abc123', ['runtime' => 12.5, 'memory' => 52428800]);
+
+    expect($transport->postCalls[0]['url'])->toBe('https://downctl.com/ping/cron/abc123/finished')
+        ->and($transport->postCalls[0]['body'])->toBe(['runtime' => 12.5, 'memory' => 52428800]);
+});
+
+test('pingCronFailed sends to /failed suffix', function () {
+    $transport = makeTransport();
+    $client    = new Client(new Config(apiKey: 'key-abc'), $transport);
+
+    $client->pingCronFailed('abc123', ['exit_code' => 1, 'failure_message' => 'Timed out']);
+
+    expect($transport->postCalls[0]['url'])->toBe('https://downctl.com/ping/cron/abc123/failed')
+        ->and($transport->postCalls[0]['body']['exit_code'])->toBe(1)
+        ->and($transport->postCalls[0]['body']['failure_message'])->toBe('Timed out');
+});
+
+test('pingCron does not include the API key in request headers', function () {
+    $transport = makeTransport(getStatus: 200);
+    $client    = new Client(new Config(apiKey: 'key-abc'), $transport);
+
+    $client->pingCron('abc123');
+
+    expect($transport->getCalls[0]['headers'])->toBe([]);
+});
+
+test('cron ping swallows transport exceptions in silent mode', function () {
+    $transport = makeTransport(throws: true);
+    $client    = new Client(new Config(apiKey: 'key-abc'), $transport);
+
+    $client->pingCron('abc123', ['runtime' => 1.0]);
+
+    expect(true)->toBeTrue();
+});
+
+test('cron ping rethrows in non-silent mode on transport error', function () {
+    $transport = makeTransport(throws: true);
+    $client    = new Client(new Config(apiKey: 'key-abc', silent: false), $transport);
+
+    $client->pingCron('abc123', ['runtime' => 1.0]);
+})->throws(TransportException::class);
+
+test('cron ping rethrows in non-silent mode on non-2xx response', function () {
+    $transport = makeTransport(getStatus: 429);
+    $client    = new Client(new Config(apiKey: 'key-abc', silent: false), $transport);
+
+    $client->pingCron('abc123');
+})->throws(TransportException::class);
+
 // ── reportMetrics ─────────────────────────────────────────────────────────────
 
 test('reportMetrics sends to metrics endpoint with api key', function () {

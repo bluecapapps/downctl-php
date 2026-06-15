@@ -137,6 +137,118 @@ if (! $client->ping()) {
 }
 ```
 
+## Cron Monitoring
+
+Cron monitoring lets Downctl alert you when a scheduled PHP script misses its expected window, runs too long, or exits with an error. Each monitor has a unique ping token; your script hits that URL to prove it ran.
+
+### 1. Create a monitor in Downctl
+
+Open your site in Downctl, navigate to **Cron monitors**, and add a monitor. Set the schedule (cron expression or a simple minute frequency) and a grace period. Copy the ping token shown on the monitor card.
+
+### 2. Add pings to your script
+
+For simple scripts that just need a heartbeat:
+
+```php
+<?php
+
+require_once '/path/to/vendor/autoload.php';
+
+use Bluecapapps\Downctl\Client;
+use Bluecapapps\Downctl\Config;
+
+$downctl = new Client(Config::fromEnv());
+
+$downctl->pingCronStarted('your-ping-token');
+
+try {
+    // your job logic here
+    runImport();
+
+    $downctl->pingCronFinished('your-ping-token', [
+        'runtime' => microtime(true) - $_SERVER['REQUEST_TIME_FLOAT'],
+    ]);
+} catch (\Throwable $e) {
+    $downctl->pingCronFailed('your-ping-token', [
+        'exit_code'       => 1,
+        'failure_message' => $e->getMessage(),
+    ]);
+
+    throw $e;
+}
+```
+
+Or use a wrapper to capture start time automatically:
+
+```php
+$token = 'your-ping-token';
+$start = microtime(true);
+
+$downctl->pingCronStarted($token);
+
+try {
+    runImport();
+    $downctl->pingCronFinished($token, ['runtime' => round(microtime(true) - $start, 4)]);
+} catch (\Throwable $e) {
+    $downctl->pingCronFailed($token, ['exit_code' => 1, 'failure_message' => $e->getMessage()]);
+    exit(1);
+}
+```
+
+For jobs that don't need lifecycle tracking, a single heartbeat is enough:
+
+```php
+runImport();
+
+$downctl->pingCron('your-ping-token');
+```
+
+### Available methods
+
+| Method | Ping URL suffix | When to call |
+|---|---|---|
+| `pingCron($token, $metadata)` | _(none)_ | Simple heartbeat — job ran and succeeded |
+| `pingCronStarted($token, $metadata)` | `/started` | Immediately before the job runs |
+| `pingCronFinished($token, $metadata)` | `/finished` | After a successful run |
+| `pingCronFailed($token, $metadata)` | `/failed` | After a failed run |
+
+### Accepted metadata
+
+All fields are optional in every method:
+
+| Field | Type | Description |
+|---|---|---|
+| `runtime` | float | Job duration in seconds |
+| `memory` | int | Peak memory usage in bytes |
+| `exit_code` | int | Process exit code (non-zero is always treated as failure) |
+| `failure_message` | string | Human-readable failure reason (max 255 chars) |
+
+### Without Composer
+
+If you can't use Composer, ping the URL directly from your shell script — no API key needed:
+
+```bash
+#!/bin/bash
+
+TOKEN="your-ping-token"
+BASE="https://downctl.com/ping/cron"
+
+curl -s "${BASE}/${TOKEN}/started"
+
+php /path/to/import.php
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -eq 0 ]; then
+    curl -s -X POST "${BASE}/${TOKEN}/finished" \
+         -H "Content-Type: application/json" \
+         -d "{\"exit_code\": 0}"
+else
+    curl -s -X POST "${BASE}/${TOKEN}/failed" \
+         -H "Content-Type: application/json" \
+         -d "{\"exit_code\": ${EXIT_CODE}, \"failure_message\": \"Script exited with code ${EXIT_CODE}\"}"
+fi
+```
+
 ## Silent mode
 
 By default `silent: true`. Any exception thrown during an HTTP call - network timeouts, DNS failures, invalid API keys - is caught internally and discarded. **Your application will never crash because of the SDK.**
